@@ -2,7 +2,7 @@
 
 Modern AI Voice Agents are transforming phone-based interactions by enabling human-like conversations over calls. These agents are powered by real-time speech processing pipelines that include audio extraction, speech recognition, natural language understanding, and response generation. For developers building such agents on top of **Asterisk**, knowing how to access and process audio streams is key.
 
-![AI Agent Architecture](image/ai_agent.png)
+![AI Agent Architecture](ai_agent.png)
 
 ---
 
