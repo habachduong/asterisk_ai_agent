@@ -1,6 +1,8 @@
 # Building an AI Voice Agent with Asterisk: Stream Extraction Methods for ASR Integration
 
-Modern AI Voice Agents are transforming phone-based interactions by enabling human-like conversations over calls. These agents are powered by real-time speech processing pipelines that include audio extraction, speech recognition, natural language understanding, and response generation. For developers building such agents on top of **Asterisk**, knowing how to access and process audio streams is key.
+To build an effective real-time AI Voice Agent, the **most critical task** is to clearly define and manage the **audio stream path between Asterisk and the AI processing modules**. This includes capturing inbound voice (from caller to ASR), generating responses (from LLM to TTS), and streaming synthesized audio back to the caller.
+
+Understanding how audio flows **in and out of Asterisk**, and how it integrates with components like **ASR**, **TTS**, **LLM**, **AMD**, and **Turn Detection**, is essential for achieving low latency, scalability, and natural conversation quality.
 
 ![AI Agent Architecture](ai_agent.png)
 
@@ -11,13 +13,13 @@ Modern AI Voice Agents are transforming phone-based interactions by enabling hum
 A complete AI Voice Agent typically consists of:
 
 1. **AMD (Answering Machine Detection)** – Filters out voicemails to save processing resources.
-2. **Turn Detection** – Determines when the caller has finished speaking before triggering the AI’s response.
+2. **Turn Detection** – Determines when the caller has paused speaking before triggering the AI’s response.
 3. **ASR (Automatic Speech Recognition)** – Converts caller audio to text.
 4. **LLM (Large Language Model or NLU engine)** – Understands intent and generates replies.  
    ✅ *On-premise option:* Use **Rasa** as a local NLU engine to avoid sending data to cloud-based models.
 5. **TTS (Text-to-Speech)** – Converts AI-generated text back to speech for playback.
 
-This architecture requires that audio be extracted from the call in real-time or near-real-time, and Asterisk offers several methods to support this.
+To enable this pipeline, the Asterisk system must provide real-time access to the audio stream (via WebSocket, SIPREC, or file), and be able to play back synthesized audio from the TTS module.
 
 ---
 
@@ -34,10 +36,10 @@ AGI scripts allow you to record short user responses or prompts and pass them to
 
 ### 2. ARI (Asterisk REST Interface)
 
-ARI provides low-level control over media and channels, including real-time audio streaming via WebSocket. You can stream audio directly to ASR and receive transcripts instantly.
+ARI provides low-level control over media and channels, including real-time audio streaming via WebSocket. You can stream audio directly to ASR and receive transcripts instantly, then play back TTS audio responses dynamically.
 
 - **Best for:** Real-time voicebot interaction  
-- **Can integrate with:** ASR (e.g., Vosk, DeepSpeech), LLM (e.g., Rasa NLU), TTS (e.g., Coqui)
+- **Can integrate with:** ASR (e.g., Vosk, DeepSpeech), LLM (e.g., Rasa NLU), TTS (e.g., Coqui, custom)
 
 ---
 
@@ -61,7 +63,41 @@ SIPREC duplicates the media stream to an external recording/processing server in
 
 ### 5. AMD (Built-in Asterisk Feature)
 
-This module analyzes the initial portion of the call to determine whether the other party is a person or a machine (voicemail). It helps AI agents avoid wasting processing power on voicemail recordings.
+Asterisk’s AMD module detects whether the answering party is a human or an answering machine by analyzing early audio patterns. This avoids unnecessary ASR usage for voicemails.
+
+- **Reference:** [github.com/habachduong/asterisk_AMD](https://github.com/habachduong/asterisk_AMD)
+
+---
+
+## 🎧 Turn Detection (VAD-based)
+
+Turn detection helps identify when the speaker has finished talking, allowing the AI to respond naturally without interruptions.
+
+This can be implemented using **Voice Activity Detection (VAD)**, similar to LiveKit. A simple energy-based or WebRTC-style VAD engine segments audio into voice/silence and signals when to process the transcript.
+
+- **Reference:** [github.com/habachduong/asterisk_VAD](https://github.com/habachduong/asterisk_VAD)  
+- **Benefit:** Avoids talking over user, improves real-time flow  
+- **Tools:** WebRTC VAD, Silero VAD, or energy thresholding
+
+---
+
+## 🗣️ ASR (Speech-to-Text Engine)
+
+The ASR component is responsible for converting speech into structured text, which will be used as input for NLU/LLM. You can use cloud ASR (e.g., Google, Azure) or on-prem models like Vosk, DeepSpeech, or Whisper.
+
+- **Reference:** [github.com/habachduong/asterisk_asr_vietnamese](https://github.com/habachduong/asterisk_asr_vietnamese)  
+- **Languages supported:** Vietnamese, English  
+- **Integration type:** Real-time or batch mode via WebSocket or file
+
+---
+
+## 🔊 TTS (Text-to-Speech Engine)
+
+TTS is responsible for converting AI-generated responses into spoken audio for the caller. You can use cloud engines like Google TTS, or self-hosted TTS services for on-premise deployment.
+
+- **Reference:** [github.com/habachduong/asterisk_tts_vietnamese](https://github.com/habachduong/asterisk_tts_vietnamese)  
+- **Supported languages:** Vietnamese  
+- **Integration options:** HTTP API, local playback via Asterisk ARI or AGI
 
 ---
 
@@ -71,10 +107,11 @@ For a privacy-focused or air-gapped deployment, your full AI stack may look like
 
 - **Asterisk** – PBX and audio router  
 - **ARI** – Audio streaming API  
-- **Vosk / DeepSpeech** – ASR engine (on-prem)  
+- **Vosk / DeepSpeech / Whisper** – ASR engine (on-prem)  
 - **Rasa NLU/Core** – Intent detection and dialogue manager (on-prem)  
-- **Coqui TTS / eSpeak** – Text-to-speech engine  
-- **Optional** – Turn detection service (e.g., custom silence detection)
+- **Coqui TTS / asterisk_tts_vietnamese** – TTS engine (on-prem)  
+- **Turn Detection** – VAD-based logic to detect speaker pause  
+- **AMD** – Voicemail filtering
 
 ---
 
@@ -85,6 +122,8 @@ Whether you're deploying AI voice agents on cloud or on-premise, Asterisk provid
 - **AGI or ARI** for audio handling  
 - **SIPREC** for stream duplication  
 - **AMD** for intelligent filtering  
-- and **Rasa** for on-premise LLM/NLU,
+- **VAD** for natural turn-taking  
+- **Custom ASR and TTS** for Vietnamese language  
+- **Rasa** for on-premise NLU
 
-you can build scalable, real-time voice AI systems that respect privacy, work in local environments, and provide intelligent human-like interactions over the phone.
+...and most importantly, by correctly routing the **audio stream from Asterisk into and out of the AI pipeline**, you can build scalable, real-time voice AI systems that respect privacy, work in local environments, and provide intelligent human-like interactions over the phone.
